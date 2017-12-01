@@ -1,4 +1,5 @@
 require 'aws-sdk'
+require 'cuke_slicer'
 
 class Cluster
   def initialize(config, tests)
@@ -12,7 +13,7 @@ class Cluster
     ec2 = Aws::EC2::Resource.new
     params = {
         image_id: @config['ami'],
-        instance_type: 't2.micro',
+        instance_type: @config['instance_type'],
         key_name: @config['key'],
         min_count: 1,
         max_count: @config['node_count'],
@@ -21,8 +22,8 @@ class Cluster
         }
     }
     instances = ec2.create_instances(params)
-    @nodes = instances.map do |ins|
-      Node.new(ec2, ins.id, @config)
+    @nodes = instances.map do |instance|
+      Node.new(instance.id, ec2, @config)
     end
   end
 
@@ -35,6 +36,10 @@ class Cluster
   def monitor_nodes
     assign_tests until @tests.empty?
     @nodes.reject! {|node| node.destroy} until @nodes.empty?
+  end
+  
+  def terminate_all_nodes
+    @nodes.each {|node| node.terminate}
   end
 
 end

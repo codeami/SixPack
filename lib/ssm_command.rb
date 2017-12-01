@@ -1,24 +1,34 @@
 class SSMCommand
   attr_reader :id
 
-  def initialize(id, commands)
-    @instance_id = id
+  def initialize(instance_id, commands, config)
+    @instance_id = instance_id
     @client = Aws::SSM::Client.new
-    @id = @client.send_command(parameters(id, commands)).command.command_id
+    @config = config
+    @id = nil
+    @commands = commands
+  end
+  
+  def send
+    @id = @client.send_command(parameters).command.command_id
   end
 
-  def parameters(id, commands)
+  def parameters
     {
-        instance_ids: [id],
-        document_name: "AWS-RunShellScript",
+        instance_ids: [@instance_id],
+        document_name: "#{@config['script']}",
         parameters: {
-            "commands" => commands
+            "commands" => @commands
         }
     }
   end
 
   def get_invocation
-    @client.get_command_invocation({instance_id: @instance_id, command_id: @id})
+    begin
+      @client.get_command_invocation({instance_id: @instance_id, command_id: @id})
+    rescue => e
+      raise e
+    end
   end
 
   def status

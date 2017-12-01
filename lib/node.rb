@@ -1,9 +1,9 @@
 class Node
   attr_reader :id
 
-  def initialize(resource, id, config)
-    @resource = resource
+  def initialize(id, resource, config)
     @id = id
+    @resource = resource
     @config = config
     @test = nil
   end
@@ -13,7 +13,8 @@ class Node
   end
   
   def node_up?
-    state == 16 and @resource.client.describe_instance_status({instance_ids: [@id]}).instance_statuses[0].instance_status.details[0].status == 'passed'
+    status0 = @resource.client.describe_instance_status({instance_ids: [@id]}).instance_statuses[0]
+    state == 16 and status0 and status0.instance_status.details[0].status == 'passed'
   end
   
   def state
@@ -24,16 +25,21 @@ class Node
     @resource.instance(id)
   end
 
-  def run_test(test_id)
-    @test = Test.new(test_id, SSMCommand.new(@id, ["cd #{@config['root']}", " bundle exec cucumber -t #{test_id}"])) 
+  def run_test(test_line)
+    @test = Test.new(id, @config, test_line) 
+    @test.run 
   end
 
   def destroy
     if ready_for_assignment?
-      instance.terminate
+      terminate
       true
     else
       false
     end
+  end
+  
+  def terminate
+    instance.terminate
   end
 end
